@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useCart } from '~~/composables/useCart'
+
+const { addToCart } = useCart()
+
 // 分类数据 - 使用 Lucide 图标
 const categories = [
   { name: '汉堡', icon: 'i-lucide-sandwich', color: 'text-orange-500', bg: 'bg-orange-50 group-hover:bg-orange-100' },
@@ -261,7 +265,12 @@ const activeTab = ref('nearby')
                   <span class="text-2xl font-bold text-gray-900">{{ dish.price }}</span>
                   <span class="text-sm text-gray-400 line-through decoration-gray-300">¥{{ dish.originalPrice }}</span>
                 </div>
-                <UButton color="primary" size="md" class="rounded-full w-10 h-10 p-0 flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
+                <UButton 
+                  color="primary" 
+                  size="md" 
+                  class="rounded-full w-10 h-10 p-0 flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform"
+                  @click.stop="addToCart(dish.id)"
+                >
                   <UIcon name="i-lucide-plus" class="w-5 h-5" />
                 </UButton>
               </div>

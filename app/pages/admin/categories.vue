@@ -12,7 +12,7 @@ definePageMeta({
         <div>
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">分类管理</h1>
         </div>
-        <UButton to="/admin" color="gray" variant="ghost" icon="i-lucide-arrow-left">返回后台</UButton>
+        <UButton to="/admin" color="primary" variant="ghost" icon="i-lucide-arrow-left">返回后台</UButton>
       </div>
       <UCard>
         <div class="text-center py-20 text-gray-500">

@@ -2,6 +2,7 @@
 import { getCategoryList } from '~~/services/modules/category'
 import { getDishPage } from '~~/services/modules/dish'
 import type { Category, Dish } from '~~/types/api'
+import { useCart } from '~~/composables/useCart'
 
 definePageMeta({
   layout: 'default'
@@ -9,6 +10,7 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
+const { addToCart } = useCart()
 const toast = useToast()
 
 // State
@@ -82,13 +84,7 @@ const handleSearch = () => {
 }
 
 const handleAddToCart = (dish: Dish) => {
-  // TODO: Implement Cart Store
-  toast.add({ 
-    title: '已加入购物车', 
-    description: `${dish.name} +1`,
-    icon: 'i-lucide-shopping-cart',
-    color: 'primary'
-  })
+  addToCart(dish.id)
 }
 
 // Watchers
@@ -110,159 +106,211 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans">
     <!-- App Header -->
     <AppHeader />
 
-    <!-- Sub Header Section -->
-    <div class="bg-white dark:bg-gray-800 shadow-sm sticky top-20 z-30">
-      <UContainer>
+    <!-- Hero Section -->
+    <div class="relative bg-white dark:bg-gray-900 overflow-hidden border-b border-gray-100 dark:border-gray-800">
+      <!-- Decorative Background -->
+      <div class="absolute inset-0 pointer-events-none">
+        <div class="absolute inset-0 bg-gradient-to-br from-orange-50/80 via-white to-orange-50/30 dark:from-orange-950/20 dark:via-gray-900 dark:to-gray-900"></div>
+        <div class="absolute right-0 top-0 -mr-32 -mt-32 w-96 h-96 bg-orange-100 dark:bg-orange-900/20 rounded-full blur-3xl opacity-50"></div>
+        <div class="absolute left-0 bottom-0 -ml-32 -mb-32 w-96 h-96 bg-red-100 dark:bg-red-900/20 rounded-full blur-3xl opacity-50"></div>
+      </div>
 
-        
-        <!-- Mobile Category Scroll -->
-        <div class="md:hidden overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
-          <div class="flex gap-2">
-            <UButton
-              :variant="selectedCategoryId === undefined ? 'solid' : 'ghost'"
-              :color="selectedCategoryId === undefined ? 'primary' : 'secondary'"
-              size="sm"
-              class="rounded-full px-4"
-              @click="handleCategorySelect(undefined)"
-            >
-              全部
-            </UButton>
-            <UButton
-              v-for="category in categories"
-              :key="category.id"
-              :variant="selectedCategoryId === category.id ? 'solid' : 'ghost'"
-              :color="selectedCategoryId === category.id ? 'primary' : 'secondary'"
-              size="sm"
-              class="rounded-full px-4 whitespace-nowrap"
-              @click="handleCategorySelect(category.id)"
-            >
-              {{ category.name }}
-            </UButton>
+      <UContainer class="relative py-8 md:py-12">
+        <div class="max-w-3xl mx-auto text-center">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs font-medium mb-4 border border-orange-100 dark:border-orange-800/50">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+            </span>
+            全城美食，极速送达
+          </div>
+          
+          <h1 class="text-3xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight leading-tight">
+            探索您身边的 <span class="bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text text-transparent">美味佳肴</span>
+          </h1>
+          
+          <p class="text-base text-gray-600 dark:text-gray-400 mb-8 leading-relaxed max-w-2xl mx-auto">
+            从经典主食到精致甜点，我们为您精选了各类美食。
+          </p>
+          
+          <!-- Search Bar -->
+          <div class="relative max-w-xl mx-auto group">
+            <div class="absolute -inset-1 bg-gradient-to-r from-orange-400 to-red-600 rounded-full blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+            <div class="relative bg-white dark:bg-gray-800 rounded-full shadow-xl shadow-gray-200/50 dark:shadow-none p-1.5 flex items-center ring-1 ring-gray-100 dark:ring-gray-700">
+              <div class="pl-4 text-gray-400">
+                <UIcon name="i-lucide-search" class="w-5 h-5" />
+              </div>
+              <input 
+                v-model="searchQuery"
+                type="text"
+                placeholder="搜索您想吃的美食..."
+                class="flex-1 bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white placeholder-gray-400 px-3 py-2 outline-none h-10"
+                @keyup.enter="handleSearch"
+              />
+              <UButton 
+                color="primary" 
+                size="lg" 
+                class="rounded-full px-6 font-medium transition-transform active:scale-95"
+                @click="handleSearch"
+              >
+                搜索
+              </UButton>
+            </div>
           </div>
         </div>
       </UContainer>
     </div>
 
-    <UContainer class="mt-6 md:mt-8">
-      <div class="flex flex-col md:flex-row gap-8">
-        <!-- Desktop Sidebar -->
-        <aside class="hidden md:block w-64 flex-shrink-0">
-          <div class="sticky top-24 bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700">
-            <div class="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-              <h3 class="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <UIcon name="i-lucide-layout-grid" class="w-4 h-4" />
+    <UContainer class="mt-12 pb-20">
+      <div class="flex flex-col md:flex-row gap-8 lg:gap-12">
+        
+        <!-- Sidebar (Categories) -->
+        <aside class="w-full md:w-64 flex-shrink-0">
+          <div class="sticky top-24 space-y-6">
+            
+            <!-- Mobile Category Select -->
+            <div class="md:hidden bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+               <USelectMenu 
+                 v-model="selectedCategoryId" 
+                 :options="[{id: undefined as number | undefined, name: '全部菜品'}, ...categories]"
+                 value-attribute="id"
+                 option-attribute="name"
+                 placeholder="选择分类"
+                 size="lg"
+                 class="w-full"
+               />
+            </div>
+
+            <!-- Desktop Category List -->
+            <div class="hidden md:block bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+              <h3 class="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2 px-2">
+                <UIcon name="i-lucide-layout-grid" class="w-5 h-5 text-primary-500" />
                 菜品分类
               </h3>
-            </div>
-            <div class="p-2 space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
-              <button
-                class="w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all duration-200 flex items-center justify-between group"
-                :class="selectedCategoryId === undefined 
-                  ? 'bg-orange-50 text-orange-600 font-medium dark:bg-orange-900/20 dark:text-orange-400' 
-                  : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700/50'"
-                @click="handleCategorySelect(undefined)"
-              >
-                <span>全部菜品</span>
-                <UIcon name="i-lucide-chevron-right" class="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" :class="{ 'opacity-100': selectedCategoryId === undefined }" />
-              </button>
-              
-              <button
-                v-for="category in categories"
-                :key="category.id"
-                class="w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all duration-200 flex items-center justify-between group"
-                :class="selectedCategoryId === category.id 
-                  ? 'bg-orange-50 text-orange-600 font-medium dark:bg-orange-900/20 dark:text-orange-400' 
-                  : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700/50'"
-                @click="handleCategorySelect(category.id)"
-              >
-                <span>{{ category.name }}</span>
-                <UIcon name="i-lucide-chevron-right" class="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" :class="{ 'opacity-100': selectedCategoryId === category.id }" />
-              </button>
+              <nav class="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto custom-scrollbar pr-2 -mr-2">
+                <button
+                  class="w-full text-left px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-300 flex items-center justify-between group relative overflow-hidden shrink-0"
+                  :class="selectedCategoryId === undefined 
+                    ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 shadow-sm ring-1 ring-primary-100 dark:ring-primary-800' 
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'"
+                  @click="handleCategorySelect(undefined)"
+                >
+                  <span class="relative z-10">全部菜品</span>
+                  <UIcon name="i-lucide-chevron-right" class="w-4 h-4 transition-transform duration-300" :class="selectedCategoryId === undefined ? 'translate-x-0 text-primary-500' : '-translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'" />
+                </button>
+                
+                <button
+                  v-for="category in categories"
+                  :key="category.id"
+                  class="w-full text-left px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-300 flex items-center justify-between group relative overflow-hidden shrink-0"
+                  :class="selectedCategoryId === category.id 
+                    ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 shadow-sm ring-1 ring-primary-100 dark:ring-primary-800' 
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'"
+                  @click="handleCategorySelect(category.id)"
+                >
+                  <span class="relative z-10">{{ category.name }}</span>
+                  <UIcon name="i-lucide-chevron-right" class="w-4 h-4 transition-transform duration-300" :class="selectedCategoryId === category.id ? 'translate-x-0 text-primary-500' : '-translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'" />
+                </button>
+              </nav>
             </div>
           </div>
         </aside>
 
-        <!-- Main Content -->
+        <!-- Main Grid -->
         <main class="flex-1 min-w-0">
+          <!-- Filter Bar -->
+          <div class="flex justify-between items-center mb-8 px-2">
+            <p class="text-gray-500 dark:text-gray-400">
+              共找到 <span class="font-bold text-gray-900 dark:text-white mx-1">{{ total }}</span> 道美味
+            </p>
+          </div>
+
           <!-- Loading State -->
-          <div v-if="loading && page === 1" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div v-for="i in 6" :key="i" class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-              <USkeleton class="h-48 w-full rounded-lg mb-4" />
-              <USkeleton class="h-6 w-3/4 mb-2" />
-              <USkeleton class="h-4 w-1/2 mb-4" />
-              <div class="flex justify-between items-center">
+          <div v-if="loading && page === 1" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div v-for="i in 6" :key="i" class="bg-white dark:bg-gray-900 rounded-3xl p-4 shadow-sm border border-gray-100 dark:border-gray-800">
+              <USkeleton class="h-48 w-full rounded-2xl mb-4" />
+              <USkeleton class="h-6 w-3/4 mb-3" />
+              <USkeleton class="h-4 w-1/2 mb-6" />
+              <div class="flex justify-between items-center pt-2">
                 <USkeleton class="h-6 w-20" />
-                <USkeleton class="h-8 w-8 rounded-full" />
+                <USkeleton class="h-10 w-10 rounded-full" />
               </div>
             </div>
           </div>
 
           <!-- Empty State -->
-          <div v-else-if="dishes.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
-            <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-full mb-4">
-              <UIcon name="i-lucide-search-x" class="w-12 h-12 text-gray-400" />
+          <div v-else-if="dishes.length === 0" class="flex flex-col items-center justify-center py-32 text-center bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+            <div class="bg-orange-50 dark:bg-gray-800 p-6 rounded-full mb-6">
+              <UIcon name="i-lucide-search-x" class="w-12 h-12 text-orange-300" />
             </div>
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">未找到相关菜品</h3>
-            <p class="text-gray-500 mb-6">试试切换其他分类或搜索关键词</p>
-            <UButton color="primary" variant="soft" @click="handleCategorySelect(undefined); searchQuery = ''; handleSearch()">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">未找到相关菜品</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-8 max-w-xs mx-auto">试试切换其他分类，或者换个搜索关键词试试看</p>
+            <UButton color="primary" variant="soft" size="lg" class="rounded-full px-8" @click="handleCategorySelect(undefined); searchQuery = ''; handleSearch()">
               查看全部菜品
             </UButton>
           </div>
 
           <!-- Dish Grid -->
-          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             <div 
               v-for="dish in dishes" 
               :key="dish.id"
-              class="group bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md border border-gray-100 dark:border-gray-700 transition-all duration-300 flex flex-col overflow-hidden"
+              class="group bg-white dark:bg-gray-900 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800 hover:border-primary-100 dark:hover:border-primary-900/50 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-black/50 transition-all duration-500 flex flex-col overflow-hidden transform hover:-translate-y-1"
             >
-              <!-- Image -->
-              <div class="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-900">
-                <img 
-                  :src="dish.image || 'https://placehold.co/600x400?text=No+Image'" 
-                  :alt="dish.name"
-                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  loading="lazy"
-                />
-                <!-- Tags (Optional) -->
-                <div class="absolute top-3 left-3 flex gap-2">
-                  <UBadge v-if="dish.sales > 100" color="primary" variant="solid" size="xs" class="shadow-sm">
-                    热销
-                  </UBadge>
+              <!-- Image Area -->
+              <div class="relative aspect-[4/3] overflow-hidden p-3 pb-0">
+                <div class="relative w-full h-full rounded-[1.5rem] overflow-hidden">
+                  <img 
+                    :src="dish.image || 'https://placehold.co/600x400?text=FoodOrder'" 
+                    :alt="dish.name"
+                    class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    loading="lazy"
+                  />
+                  <!-- Overlay -->
+                  <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500"></div>
+                  
+                  <!-- Top Badges -->
+                  <div class="absolute top-3 left-3 flex gap-2">
+                    <span v-if="dish.sales > 100" class="px-2.5 py-1 rounded-full bg-white/95 backdrop-blur text-xs font-bold text-orange-600 shadow-sm flex items-center gap-1">
+                      <UIcon name="i-lucide-flame" class="w-3 h-3" />
+                      热销
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <!-- Content -->
-              <div class="p-4 flex-1 flex flex-col">
-                <div class="flex justify-between items-start mb-2">
-                  <h3 class="font-bold text-gray-900 dark:text-white text-lg line-clamp-1 group-hover:text-orange-500 transition-colors">
-                    {{ dish.name }}
-                  </h3>
+              <!-- Content Area -->
+              <div class="p-6 pt-4 flex-1 flex flex-col">
+                <div class="mb-4">
+                  <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-bold text-gray-900 dark:text-white text-lg leading-snug line-clamp-1 group-hover:text-primary-600 transition-colors">
+                      {{ dish.name }}
+                    </h3>
+                  </div>
+                  <p class="text-gray-500 dark:text-gray-400 text-sm line-clamp-2 h-10 leading-relaxed">
+                    {{ dish.description || '暂无描述，但这道菜一定很美味...' }}
+                  </p>
                 </div>
-                
-                <p class="text-gray-500 dark:text-gray-400 text-sm line-clamp-2 mb-4 flex-1">
-                  {{ dish.description || '暂无描述' }}
-                </p>
 
-                <div class="flex items-center justify-between mt-auto pt-4 border-t border-gray-50 dark:border-gray-700/50">
+                <div class="mt-auto flex items-center justify-between pt-4 border-t border-dashed border-gray-100 dark:border-gray-800">
                   <div class="flex flex-col">
-                    <span class="text-xs text-gray-400 mb-0.5">月售 {{ dish.sales || 0 }}</span>
-                    <div class="flex items-baseline gap-1">
-                      <span class="text-xs text-orange-600 font-medium">¥</span>
-                      <span class="text-xl font-bold text-orange-600">{{ dish.price }}</span>
+                    <p class="text-xs text-gray-400 mb-0.5">月售 {{ dish.sales || 0 }}</p>
+                    <div class="flex items-baseline gap-0.5 text-gray-900 dark:text-white">
+                      <span class="text-sm font-bold text-primary-600">¥</span>
+                      <span class="text-2xl font-extrabold text-primary-600">{{ dish.price }}</span>
                     </div>
                   </div>
                   
                   <UButton 
                     icon="i-lucide-plus"
+                    size="md"
                     color="primary" 
                     variant="solid"
-                    class="rounded-full w-10 h-10 flex items-center justify-center shadow-sm hover:shadow-orange-200 dark:hover:shadow-none transition-all active:scale-95"
-                    :ui="{ rounded: 'rounded-full' }"
+                    class="rounded-full w-11 h-11 flex items-center justify-center shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:scale-105 active:scale-95 transition-all duration-300 p-0"
                     @click="handleAddToCart(dish)"
                   />
                 </div>
@@ -271,13 +319,12 @@ onMounted(async () => {
           </div>
 
           <!-- Pagination -->
-          <div v-if="total > pageSize" class="mt-10 flex justify-center">
+          <div v-if="total > pageSize" class="mt-16 flex justify-center">
             <UPagination 
               v-model:page="page" 
               :items-per-page="pageSize" 
               :total="total"
               :max="5"
-              :ui="{ wrapper: 'gap-2' }"
             />
           </div>
         </main>
@@ -285,19 +332,3 @@ onMounted(async () => {
     </UContainer>
   </div>
 </template>
-
-<style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #e5e7eb;
-  border-radius: 20px;
-}
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #374151;
-}
-</style>

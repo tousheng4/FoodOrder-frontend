@@ -21,8 +21,8 @@ const stats = [
           <p class="text-gray-500 mt-1">欢迎回来，{{ user?.nickname || '管理员' }}</p>
         </div>
         <div class="flex gap-3">
-          <UButton to="/" color="gray" variant="ghost" icon="i-lucide-home">返回首页</UButton>
-          <UButton color="red" variant="ghost" icon="i-lucide-log-out" @click="logout">退出</UButton>
+          <UButton to="/" color="primary" variant="ghost" icon="i-lucide-home">返回首页</UButton>
+          <UButton color="secondary" variant="ghost" icon="i-lucide-log-out" @click="logout">退出</UButton>
         </div>
       </div>
 

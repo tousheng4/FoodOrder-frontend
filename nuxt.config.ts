@@ -12,6 +12,18 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  // App 配置
+  app: {
+    head: {
+      title: 'FoodOrder',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'description', content: 'FoodOrder - 您的美食外卖平台' }
+      ]
+    }
+  },
+
   // 运行时配置
   runtimeConfig: {
     public: {
