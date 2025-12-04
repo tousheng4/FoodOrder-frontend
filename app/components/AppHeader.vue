@@ -198,6 +198,7 @@ const handleLogout = () => {
         >
           <UButton color="neutral" variant="ghost" size="lg" class="gap-2">
             <UAvatar 
+              :src="user?.avatar"
               :alt="user?.nickname || user?.username" 
               size="sm"
               :ui="{ root: 'bg-gradient-to-br from-primary-500 to-red-600' }"

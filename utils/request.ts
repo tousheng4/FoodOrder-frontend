@@ -27,14 +27,29 @@ export async function request<T = any>(
   }
 
   try {
+    // 构建请求头，FormData 时不设置 Content-Type，让浏览器自动处理
+    const requestHeaders: Record<string, string> = {}
+    
+    // 只有非 FormData 时才设置 Content-Type
+    if (!(body instanceof FormData)) {
+      requestHeaders['Content-Type'] = 'application/json'
+    }
+    
+    // 合并自定义 headers
+    Object.assign(requestHeaders, headers)
+    
+    // 移除值为 undefined 的 header
+    Object.keys(requestHeaders).forEach(key => {
+      if (requestHeaders[key] === undefined) {
+        delete requestHeaders[key]
+      }
+    })
+
     const response = await $fetch<ApiResult<T>>(`${BASE_URL}${url}`, {
       method,
       body,
       params,
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
+      headers: requestHeaders,
     })
 
     // 后端返回的统一格式：{ code, msg, data }

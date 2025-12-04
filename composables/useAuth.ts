@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import type { UserVO, LoginRequest, RegisterRequest } from '~~/types/api'
 import { login as apiLogin, register as apiRegister } from '~~/services/modules/auth'
+import { getUserInfo as apiGetUserInfo } from '~~/services/modules/user'
 
 /**
  * 用户认证状态管理 Composable
@@ -112,7 +113,31 @@ export const useAuth = () => {
       user.value = { ...user.value, ...newUser }
       
       if (process.client) {
-        localStorage.setItem('user', JSON.stringify(user.value))
+        localStorage.setItem('auth_user_info', JSON.stringify(user.value))
+      }
+    }
+  }
+
+  /**
+   * 刷新用户信息（从服务器重新获取）
+   */
+  const refreshUser = async () => {
+    if (!token.value) return { success: false, error: '未登录' }
+    
+    try {
+      const userInfo = await apiGetUserInfo()
+      user.value = userInfo
+      
+      if (process.client) {
+        localStorage.setItem('auth_user_info', JSON.stringify(userInfo))
+      }
+      
+      return { success: true, data: userInfo }
+    } catch (error: any) {
+      console.error('Refresh user error:', error)
+      return { 
+        success: false, 
+        error: error.message || '获取用户信息失败' 
       }
     }
   }
@@ -127,5 +152,6 @@ export const useAuth = () => {
     logout,
     checkAuth,
     updateUser,
+    refreshUser,
   }
 }

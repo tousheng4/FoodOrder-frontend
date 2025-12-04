@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuth } from '~~/composables/useAuth'
+import { updateUserInfo } from '~~/services/modules/user'
 import { 
   getAddressList, 
   addAddress, 
@@ -9,8 +10,76 @@ import {
   type AddressVO
 } from '~~/services/modules/address'
 
-const { user, logout, isAuthenticated } = useAuth()
+const { user, logout, isAuthenticated, updateUser, refreshUser } = useAuth()
 const toast = useToast()
+
+// Edit Profile State
+const isEditProfileModalOpen = ref(false)
+const profileForm = reactive({
+  nickname: '',
+  avatarFile: null as File | null,
+  avatarPreview: ''
+})
+const profileSaving = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
+
+// Open Edit Modal
+const openEditProfileModal = () => {
+  profileForm.nickname = user.value?.nickname || user.value?.username || ''
+  profileForm.avatarFile = null
+  profileForm.avatarPreview = user.value?.avatar || ''
+  isEditProfileModalOpen.value = true
+}
+
+// Handle File Change
+const onAvatarChange = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  if (input.files && input.files[0]) {
+    const file = input.files[0]
+    // Validate file size (e.g., 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.add({ title: '图片大小不能超过2MB', color: 'warning' })
+      input.value = ''
+      return
+    }
+    
+    profileForm.avatarFile = file
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      profileForm.avatarPreview = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+// Save Profile
+const saveProfile = async () => {
+  if (!profileForm.nickname.trim()) {
+    toast.add({ title: '请输入昵称', color: 'warning' })
+    return
+  }
+  
+  profileSaving.value = true
+  try {
+    await updateUserInfo({
+      nickname: profileForm.nickname,
+      avatarFile: profileForm.avatarFile || undefined
+    })
+    
+    // 从服务器刷新用户信息以获取最新的头像URL
+    await refreshUser()
+    
+    toast.add({ title: '个人信息更新成功', color: 'success' })
+    isEditProfileModalOpen.value = false
+    
+  } catch (error: any) {
+    console.error('更新失败:', error)
+    toast.add({ title: '更新失败', description: error.message, color: 'error' })
+  } finally {
+    profileSaving.value = false
+  }
+}
 
 // 如果未登录，重定向到登录页
 if (!isAuthenticated.value) {
@@ -218,9 +287,20 @@ onMounted(async () => {
         <div class="lg:col-span-1">
           <UCard class="overflow-hidden ring-1 ring-gray-200 dark:ring-gray-800 shadow-sm">
             <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-user" class="text-primary-500" />
-                <span class="font-semibold text-gray-900 dark:text-white">个人信息</span>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-lucide-user" class="text-primary-500" />
+                  <span class="font-semibold text-gray-900 dark:text-white">个人信息</span>
+                </div>
+                <UButton 
+                  size="xs" 
+                  icon="i-lucide-edit" 
+                  color="gray" 
+                  variant="ghost"
+                  @click="openEditProfileModal"
+                >
+                  编辑
+                </UButton>
               </div>
             </template>
             
@@ -406,6 +486,121 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- Edit Profile Modal -->
+    <UModal 
+      v-model:open="isEditProfileModalOpen" 
+      :ui="{ width: 'sm:max-w-lg', padding: 'p-0', overlay: { background: 'bg-gray-900/50 backdrop-blur-sm' } }"
+    >
+      <template #content>
+        <!-- Custom Header with Gradient -->
+        <div class="relative bg-gradient-to-br from-primary-500 to-red-600 px-6 py-6 overflow-hidden">
+          <div class="relative z-10 flex items-center justify-between text-white">
+            <div>
+              <h3 class="text-xl font-bold flex items-center gap-2">
+                <UIcon name="i-lucide-user-cog" class="w-6 h-6" />
+                编辑个人信息
+              </h3>
+              <p class="text-primary-100 text-sm mt-1">更新您的头像与昵称，展示个性化形象</p>
+            </div>
+            <UButton 
+              color="white" 
+              variant="ghost" 
+              icon="i-lucide-x" 
+              size="sm"
+              class="hover:bg-white/20 text-white"
+              @click="isEditProfileModalOpen = false"
+            />
+          </div>
+          
+          <!-- Decorative Elements -->
+          <div class="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div class="absolute bottom-0 left-0 -mb-8 -ml-4 w-24 h-24 bg-black/10 rounded-full blur-xl pointer-events-none"></div>
+        </div>
+        
+        <div class="p-8 bg-white dark:bg-gray-800">
+          <div class="space-y-8">
+            <!-- Avatar Upload Section -->
+            <div class="flex flex-col items-center justify-center">
+              <div class="relative group cursor-pointer" @click="fileInput?.click()">
+                <div class="relative">
+                  <UAvatar 
+                    :src="profileForm.avatarPreview || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face'" 
+                    size="3xl" 
+                    class="ring-4 ring-white dark:ring-gray-700 shadow-xl transition-transform duration-300 group-hover:scale-105"
+                    :ui="{ root: 'w-28 h-28 text-3xl' }"
+                  />
+                  <!-- Edit Overlay -->
+                  <div class="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[1px]">
+                    <UIcon name="i-lucide-camera" class="text-white w-8 h-8 drop-shadow-md transform scale-75 group-hover:scale-100 transition-transform duration-300" />
+                  </div>
+                  <!-- Status Badge -->
+                  <div class="absolute bottom-1 right-1 w-7 h-7 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-md">
+                    <div class="w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center">
+                       <UIcon name="i-lucide-pencil" class="w-3 h-3 text-white" />
+                    </div>
+                  </div>
+                </div>
+                <p class="mt-3 text-sm text-center text-gray-500 dark:text-gray-400 group-hover:text-primary-500 transition-colors font-medium">点击更换头像</p>
+              </div>
+              <input 
+                type="file" 
+                ref="fileInput" 
+                class="hidden" 
+                accept="image/*"
+                @change="onAvatarChange" 
+              />
+            </div>
+
+            <!-- Form Inputs -->
+            <div class="space-y-5">
+              <div class="group">
+                <label class="flex items-center text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 group-focus-within:text-primary-600 transition-colors">
+                  <UIcon name="i-lucide-smile" class="w-4 h-4 mr-2 text-gray-400 group-focus-within:text-primary-500" />
+                  用户昵称
+                </label>
+                <UInput 
+                  v-model="profileForm.nickname" 
+                  placeholder="请输入您的昵称" 
+                  icon="i-lucide-user"
+                  size="lg"
+                  :ui="{ 
+                    icon: { trailing: { pointer: '' } }
+                  }"
+                  class="transition-all duration-200"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">这将是您在平台上的公开显示名称</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer Actions -->
+          <div class="mt-8 flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700">
+            <UButton 
+              color="gray" 
+              variant="ghost" 
+              size="md"
+              @click="isEditProfileModalOpen = false"
+              :disabled="profileSaving"
+              class="px-6 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              取消
+            </UButton>
+            <UButton 
+              color="primary" 
+              variant="solid"
+              size="md"
+              :loading="profileSaving"
+              @click="saveProfile"
+              class="px-8 bg-gradient-to-r from-primary-500 to-red-600 hover:from-primary-600 hover:to-red-700 shadow-lg shadow-primary-500/25 border-none text-white"
+              icon="i-lucide-save"
+            >
+              保存修改
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
 
     <!-- Address Modal -->
     <UModal 
