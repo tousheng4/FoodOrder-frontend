@@ -94,10 +94,6 @@ const handleLogout = () => {
       
       <!-- 右侧按钮 -->
       <div class="flex items-center gap-4">
-        <UButton color="neutral" variant="ghost" size="lg" class="relative group">
-          <UIcon name="i-lucide-search" class="w-5 h-5 text-gray-600 group-hover:text-gray-900" />
-        </UButton>
-        
         <!-- 购物车下拉 -->
         <div 
           class="relative"
