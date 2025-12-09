@@ -136,7 +136,13 @@ const handleQuantityChange = (item: any, change: number) => {
               </div>
             </div>
 
-            <UButton block size="xl" color="primary" class="font-bold shadow-xl shadow-orange-500/20 hover:shadow-orange-500/30 mb-4">
+            <UButton 
+              block 
+              size="xl" 
+              color="primary" 
+              class="font-bold shadow-xl shadow-orange-500/20 hover:shadow-orange-500/30 mb-4"
+              to="/order/confirm"
+            >
               去结算
               <UIcon name="i-lucide-arrow-right" class="ml-2" />
             </UButton>

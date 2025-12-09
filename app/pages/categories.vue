@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { getCategoryList } from '~~/services/modules/category'
-import { getDishPage } from '~~/services/modules/dish'
+import { searchDishes } from '~~/services/modules/dish'
 import type { Category, Dish } from '~~/types/api'
 import { useCart } from '~~/composables/useCart'
 
@@ -25,12 +25,36 @@ const pageSize = ref(12)
 const selectedCategoryId = ref<number | undefined>(undefined)
 const searchQuery = ref('')
 
+// Price filter
+const minPrice = ref<number | undefined>(undefined)
+const maxPrice = ref<number | undefined>(undefined)
+const minPriceInput = ref('')
+const maxPriceInput = ref('')
+
+// Price range presets
+const priceRanges = [
+  { label: '全部价格', min: undefined, max: undefined },
+  { label: '¥0-20', min: 0, max: 20 },
+  { label: '¥20-50', min: 20, max: 50 },
+  { label: '¥50-100', min: 50, max: 100 },
+  { label: '¥100以上', min: 100, max: undefined }
+]
+const selectedPriceRange = ref(0)
+
 // Initialize from query params
 if (route.query.category) {
   selectedCategoryId.value = Number(route.query.category)
 }
 if (route.query.q) {
   searchQuery.value = String(route.query.q)
+}
+if (route.query.minPrice) {
+  minPrice.value = Number(route.query.minPrice)
+  minPriceInput.value = String(route.query.minPrice)
+}
+if (route.query.maxPrice) {
+  maxPrice.value = Number(route.query.maxPrice)
+  maxPriceInput.value = String(route.query.maxPrice)
 }
 
 // Fetch Categories
@@ -43,15 +67,17 @@ const fetchCategories = async () => {
   }
 }
 
-// Fetch Dishes
+// Fetch Dishes using search API
 const fetchDishes = async () => {
   loading.value = true
   try {
-    const res = await getDishPage({
+    const res = await searchDishes({
       page: page.value,
       size: pageSize.value,
       categoryId: selectedCategoryId.value,
-      name: searchQuery.value || undefined,
+      keyword: searchQuery.value || undefined,
+      minPrice: minPrice.value,
+      maxPrice: maxPrice.value,
       status: 1 // Only show active dishes
     })
     dishes.value = res?.records || res?.list || []
@@ -63,29 +89,83 @@ const fetchDishes = async () => {
   }
 }
 
+// Update URL with current filters
+const updateQueryParams = () => {
+  const query: any = {}
+  if (selectedCategoryId.value) query.category = selectedCategoryId.value
+  if (searchQuery.value) query.q = searchQuery.value
+  if (minPrice.value !== undefined) query.minPrice = minPrice.value
+  if (maxPrice.value !== undefined) query.maxPrice = maxPrice.value
+  router.replace({ query })
+}
+
 // Handlers
 const handleCategorySelect = (id: number | undefined) => {
   selectedCategoryId.value = id
   page.value = 1
-  // Update URL without reload
-  const query: any = { ...route.query }
-  if (id) query.category = id
-  else delete query.category
-  router.replace({ query })
+  updateQueryParams()
 }
 
 const handleSearch = () => {
   page.value = 1
-  const query: any = { ...route.query }
-  if (searchQuery.value) query.q = searchQuery.value
-  else delete query.q
-  router.replace({ query })
+  updateQueryParams()
+  fetchDishes()
+}
+
+const handlePriceRangeSelect = (index: number) => {
+  selectedPriceRange.value = index
+  const range = priceRanges[index]
+  minPrice.value = range.min
+  maxPrice.value = range.max
+  minPriceInput.value = range.min !== undefined ? String(range.min) : ''
+  maxPriceInput.value = range.max !== undefined ? String(range.max) : ''
+  page.value = 1
+  updateQueryParams()
+  fetchDishes()
+}
+
+const handleCustomPriceFilter = () => {
+  const min = minPriceInput.value ? Number(minPriceInput.value) : undefined
+  const max = maxPriceInput.value ? Number(maxPriceInput.value) : undefined
+  
+  // Validation
+  if (min !== undefined && max !== undefined && min > max) {
+    toast.add({ title: '最低价格不能大于最高价格', color: 'warning' })
+    return
+  }
+  
+  minPrice.value = min
+  maxPrice.value = max
+  selectedPriceRange.value = -1 // Custom range
+  page.value = 1
+  updateQueryParams()
+  fetchDishes()
+}
+
+const handleClearFilters = () => {
+  selectedCategoryId.value = undefined
+  searchQuery.value = ''
+  minPrice.value = undefined
+  maxPrice.value = undefined
+  minPriceInput.value = ''
+  maxPriceInput.value = ''
+  selectedPriceRange.value = 0
+  page.value = 1
+  router.replace({ query: {} })
   fetchDishes()
 }
 
 const handleAddToCart = (dish: Dish) => {
   addToCart(dish.id)
 }
+
+// Check if any filter is active
+const hasActiveFilters = computed(() => {
+  return selectedCategoryId.value !== undefined ||
+    searchQuery.value !== '' ||
+    minPrice.value !== undefined ||
+    maxPrice.value !== undefined
+})
 
 // Watchers
 watch(selectedCategoryId, () => {
@@ -172,8 +252,8 @@ onMounted(async () => {
         <aside class="w-full md:w-64 flex-shrink-0">
           <div class="sticky top-24 space-y-6">
             
-            <!-- Mobile Category Select -->
-            <div class="md:hidden bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+            <!-- Mobile Category & Price Select -->
+            <div class="md:hidden bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 space-y-4">
                <USelectMenu 
                  v-model="selectedCategoryId" 
                  :options="[{id: undefined as number | undefined, name: '全部菜品'}, ...categories]"
@@ -183,6 +263,58 @@ onMounted(async () => {
                  size="lg"
                  class="w-full"
                />
+               
+               <!-- Mobile Price Filter -->
+               <div class="flex items-center gap-2">
+                 <input
+                   v-model="minPriceInput"
+                   type="number"
+                   min="0"
+                   placeholder="最低价"
+                   class="flex-1 px-3 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                 />
+                 <span class="text-gray-400 text-sm">-</span>
+                 <input
+                   v-model="maxPriceInput"
+                   type="number"
+                   min="0"
+                   placeholder="最高价"
+                   class="flex-1 px-3 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                 />
+                 <UButton
+                   color="primary"
+                   size="md"
+                   class="rounded-xl shrink-0"
+                   @click="handleCustomPriceFilter"
+                 >
+                   <UIcon name="i-lucide-filter" class="w-4 h-4" />
+                 </UButton>
+               </div>
+
+               <!-- Mobile Quick Price Buttons -->
+               <div class="flex flex-wrap gap-2">
+                 <button
+                   v-for="(range, index) in priceRanges"
+                   :key="index"
+                   class="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                   :class="selectedPriceRange === index 
+                     ? 'bg-primary-500 text-white' 
+                     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'"
+                   @click="handlePriceRangeSelect(index)"
+                 >
+                   {{ range.label }}
+                 </button>
+               </div>
+
+               <!-- Mobile Clear Filters -->
+               <button
+                 v-if="hasActiveFilters"
+                 class="w-full text-center text-sm text-gray-500 hover:text-red-500 transition-colors py-2"
+                 @click="handleClearFilters"
+               >
+                 <UIcon name="i-lucide-x" class="w-4 h-4 inline mr-1" />
+                 清除所有筛选
+               </button>
             </div>
 
             <!-- Desktop Category List -->
@@ -191,7 +323,7 @@ onMounted(async () => {
                 <UIcon name="i-lucide-layout-grid" class="w-5 h-5 text-primary-500" />
                 菜品分类
               </h3>
-              <nav class="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto custom-scrollbar pr-2 -mr-2">
+              <nav class="space-y-2 max-h-[calc(100vh-500px)] overflow-y-auto custom-scrollbar pr-2 -mr-2">
                 <button
                   class="w-full text-left px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-300 flex items-center justify-between group relative overflow-hidden shrink-0"
                   :class="selectedCategoryId === undefined 
@@ -217,16 +349,132 @@ onMounted(async () => {
                 </button>
               </nav>
             </div>
+
+            <!-- Price Filter -->
+            <div class="hidden md:block bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+              <h3 class="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2 px-2">
+                <UIcon name="i-lucide-banknote" class="w-5 h-5 text-primary-500" />
+                价格筛选
+              </h3>
+              
+              <!-- Price Range Presets -->
+              <div class="space-y-2 mb-4">
+                <button
+                  v-for="(range, index) in priceRanges"
+                  :key="index"
+                  class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 flex items-center justify-between"
+                  :class="selectedPriceRange === index 
+                    ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 ring-1 ring-primary-100 dark:ring-primary-800' 
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'"
+                  @click="handlePriceRangeSelect(index)"
+                >
+                  {{ range.label }}
+                  <UIcon 
+                    v-if="selectedPriceRange === index" 
+                    name="i-lucide-check" 
+                    class="w-4 h-4 text-primary-500" 
+                  />
+                </button>
+              </div>
+
+              <!-- Custom Price Range -->
+              <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3 px-1">自定义价格区间</p>
+                <div class="flex items-center gap-2 mb-3">
+                  <input
+                    v-model="minPriceInput"
+                    type="number"
+                    min="0"
+                    placeholder="最低"
+                    class="flex-1 w-0 px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                    @keyup.enter="handleCustomPriceFilter"
+                  />
+                  <span class="text-gray-400 text-sm">-</span>
+                  <input
+                    v-model="maxPriceInput"
+                    type="number"
+                    min="0"
+                    placeholder="最高"
+                    class="flex-1 w-0 px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                    @keyup.enter="handleCustomPriceFilter"
+                  />
+                </div>
+                <UButton
+                  color="primary"
+                  variant="soft"
+                  size="sm"
+                  block
+                  class="rounded-xl"
+                  @click="handleCustomPriceFilter"
+                >
+                  <UIcon name="i-lucide-filter" class="w-4 h-4 mr-1" />
+                  应用筛选
+                </UButton>
+              </div>
+
+              <!-- Clear Filters -->
+              <div v-if="hasActiveFilters" class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  block
+                  class="rounded-xl text-gray-500 hover:text-red-500"
+                  @click="handleClearFilters"
+                >
+                  <UIcon name="i-lucide-x" class="w-4 h-4 mr-1" />
+                  清除所有筛选
+                </UButton>
+              </div>
+            </div>
           </div>
         </aside>
 
         <!-- Main Grid -->
         <main class="flex-1 min-w-0">
           <!-- Filter Bar -->
-          <div class="flex justify-between items-center mb-8 px-2">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 px-2">
             <p class="text-gray-500 dark:text-gray-400">
               共找到 <span class="font-bold text-gray-900 dark:text-white mx-1">{{ total }}</span> 道美味
             </p>
+            
+            <!-- Active Filters Tags -->
+            <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
+              <span class="text-xs text-gray-400">筛选条件:</span>
+              
+              <!-- Category Tag -->
+              <span
+                v-if="selectedCategoryId"
+                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 text-xs font-medium"
+              >
+                {{ categories.find(c => c.id === selectedCategoryId)?.name }}
+                <button @click="handleCategorySelect(undefined)" class="hover:text-primary-700">
+                  <UIcon name="i-lucide-x" class="w-3 h-3" />
+                </button>
+              </span>
+              
+              <!-- Search Tag -->
+              <span
+                v-if="searchQuery"
+                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs font-medium"
+              >
+                搜索: {{ searchQuery }}
+                <button @click="searchQuery = ''; handleSearch()" class="hover:text-blue-700">
+                  <UIcon name="i-lucide-x" class="w-3 h-3" />
+                </button>
+              </span>
+              
+              <!-- Price Tag -->
+              <span
+                v-if="minPrice !== undefined || maxPrice !== undefined"
+                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs font-medium"
+              >
+                价格: ¥{{ minPrice ?? 0 }} - {{ maxPrice !== undefined ? `¥${maxPrice}` : '不限' }}
+                <button @click="minPrice = undefined; maxPrice = undefined; minPriceInput = ''; maxPriceInput = ''; selectedPriceRange = 0; updateQueryParams(); fetchDishes()" class="hover:text-green-700">
+                  <UIcon name="i-lucide-x" class="w-3 h-3" />
+                </button>
+              </span>
+            </div>
           </div>
 
           <!-- Loading State -->

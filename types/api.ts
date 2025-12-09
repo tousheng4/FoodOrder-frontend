@@ -65,6 +65,16 @@ export interface DishQueryRequest {
   size?: number
 }
 
+export interface DishSearchRequest {
+  keyword?: string
+  categoryId?: number
+  status?: number
+  minPrice?: number
+  maxPrice?: number
+  page?: number
+  size?: number
+}
+
 // ==================== 分类相关 ====================
 export interface Category {
   id: number
@@ -147,6 +157,19 @@ export interface CancelOrderRequest {
   cancelReason?: string
 }
 
+// ==================== 支付相关 ====================
+export interface PaymentCreateResponse {
+  paymentId: string
+  formHtml: string  // 支付宝表单HTML，需要渲染后自动提交
+}
+
+export interface PaymentStatusResponse {
+  orderNo: string
+  status: 'PENDING' | 'PAID' | 'FAILED'
+  paidAt?: string
+  tradeNo?: string
+}
+
 // ==================== 地址相关 ====================
 export interface AddressVO {
   id: number
@@ -188,4 +211,67 @@ export interface CreateReviewRequest {
   dishId: number
   rating: number
   content: string
+}
+
+// ==================== 管理后台相关 ====================
+export interface ConsoleDetailVO {
+  totalUserCount: number
+  todayOrderCount: number
+  totalSales: number
+  toDoCount: number
+}
+
+export interface AdminOrderQueryRequest {
+  orderNo?: string
+  userId?: number
+  status?: number
+  from?: string
+  to?: string
+  page?: number
+  size?: number
+}
+
+export interface AdminOrderSummaryVO {
+  id: number
+  orderNo: string
+  userId: number
+  status: number
+  totalAmount: number
+  payAmount: number
+  createdAt: string
+  payTime?: string
+}
+
+export interface AdminUpdateOrderStatusRequest {
+  status: number
+  cancelReason?: string
+}
+
+// ==================== 管理员用户管理 ====================
+export interface AdminUserVO {
+  id: number
+  username: string
+  nickname: string
+  phone: string
+  avatar: string
+  role: number       // 0=普通用户, 1=管理员
+  status: number     // 0=禁用, 1=正常
+  lastLoginAt?: string
+  createdAt: string
+}
+
+export interface AdminUserQueryRequest {
+  username?: string
+  role?: number
+  status?: number
+  page?: number
+  size?: number
+}
+
+export interface AdminUpdateUserStatusRequest {
+  status: number
+}
+
+export interface AdminUpdateUserRoleRequest {
+  role: number
 }

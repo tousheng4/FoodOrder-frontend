@@ -1,14 +1,63 @@
 <script setup lang="ts">
 import { useAuth } from '~~/composables/useAuth'
+import { getConsoleDetail } from '~~/services/modules/admin'
+import type { ConsoleDetailVO } from '~~/types/api'
 
 const { user, logout } = useAuth()
+const toast = useToast()
 
-const stats = [
-  { label: '总用户', value: '1,234', icon: 'i-lucide-users', color: 'text-blue-500', bg: 'bg-blue-50' },
-  { label: '今日订单', value: '45', icon: 'i-lucide-shopping-bag', color: 'text-orange-500', bg: 'bg-orange-50' },
-  { label: '总收入', value: '¥12,345', icon: 'i-lucide-dollar-sign', color: 'text-green-500', bg: 'bg-green-50' },
-  { label: '待处理', value: '8', icon: 'i-lucide-clock', color: 'text-red-500', bg: 'bg-red-50' },
-]
+// State
+const loading = ref(true)
+const consoleData = ref<ConsoleDetailVO | null>(null)
+
+// Computed stats
+const stats = computed(() => [
+  {
+    label: '总用户',
+    value: consoleData.value?.totalUserCount?.toLocaleString() ?? '-',
+    icon: 'i-lucide-users',
+    color: 'text-blue-500',
+    bg: 'bg-blue-50'
+  },
+  {
+    label: '今日订单',
+    value: consoleData.value?.todayOrderCount?.toLocaleString() ?? '-',
+    icon: 'i-lucide-shopping-bag',
+    color: 'text-orange-500',
+    bg: 'bg-orange-50'
+  },
+  {
+    label: '总收入',
+    value: consoleData.value?.totalSales ? `¥${Number(consoleData.value.totalSales).toLocaleString()}` : '-',
+    icon: 'i-lucide-dollar-sign',
+    color: 'text-green-500',
+    bg: 'bg-green-50'
+  },
+  {
+    label: '待处理',
+    value: consoleData.value?.toDoCount?.toLocaleString() ?? '-',
+    icon: 'i-lucide-clock',
+    color: 'text-red-500',
+    bg: 'bg-red-50'
+  },
+])
+
+// Fetch data
+const fetchConsoleDetail = async () => {
+  loading.value = true
+  try {
+    const res = await getConsoleDetail()
+    consoleData.value = res
+  } catch (error) {
+    toast.add({ title: '获取统计数据失败', color: 'error' })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchConsoleDetail()
+})
 </script>
 
 <template>
@@ -32,7 +81,8 @@ const stats = [
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-gray-500 mb-1">{{ stat.label }}</p>
-              <h3 class="text-2xl font-bold">{{ stat.value }}</h3>
+              <USkeleton v-if="loading" class="h-8 w-20" />
+              <h3 v-else class="text-2xl font-bold">{{ stat.value }}</h3>
             </div>
             <div :class="`p-3 rounded-xl ${stat.bg}`">
               <UIcon :name="stat.icon" :class="`w-6 h-6 ${stat.color}`" />
