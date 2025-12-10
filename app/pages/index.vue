@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useCart } from '~~/composables/useCart'
+import { getRecommendByRating, getRecommendBySales } from '~~/services/modules/recommend'
+import type { Dish } from '~~/types/api'
 
 const { addToCart } = useCart()
 
@@ -13,60 +15,38 @@ const categories = [
   { name: '面食', icon: 'i-lucide-soup', color: 'text-yellow-500', bg: 'bg-yellow-50 group-hover:bg-yellow-100' },
 ]
 
-// 热门菜品数据
-const popularDishes = [
-  {
-    id: 1,
-    name: '至尊牛肉汉堡',
-    desc: '双层安格斯牛肉，特制秘制酱料，新鲜有机蔬菜，搭配酥脆薯条',
-    price: 38,
-    originalPrice: 49,
-    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&h=400&fit=crop',
-    rating: 4.8,
-    sales: 2341,
-    time: '25分钟',
-    tags: ['热销', '免运费']
-  },
-  {
-    id: 2,
-    name: '意式萨拉米披萨',
-    desc: '经典意式风味，手工拍打饼底，进口马苏里拉芝士拉丝',
-    price: 68,
-    originalPrice: 88,
-    image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=400&fit=crop',
-    rating: 4.9,
-    sales: 1892,
-    time: '30分钟',
-    tags: ['新品']
-  },
-  {
-    id: 3,
-    name: '三文鱼刺身拼盘',
-    desc: '挪威直运三文鱼，厚切口感饱满，搭配现磨山葵',
-    price: 128,
-    originalPrice: 168,
-    image: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=600&h=400&fit=crop',
-    rating: 4.7,
-    sales: 956,
-    time: '20分钟',
-    tags: ['高端']
-  },
-  {
-    id: 4,
-    name: '提拉米苏蛋糕',
-    desc: '意大利经典甜品，马斯卡彭芝士与手指饼干的完美融合',
-    price: 45,
-    originalPrice: 58,
-    image: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=600&h=400&fit=crop',
-    rating: 4.6,
-    sales: 1456,
-    time: '15分钟',
-    tags: ['甜点']
+// 推荐菜品数据
+const recommendDishes = ref<Dish[]>([])
+const loading = ref(false)
+const activeTab = ref<'rating' | 'sales'>('rating')
+
+// 获取推荐菜品
+const fetchRecommendDishes = async () => {
+  loading.value = true
+  try {
+    if (activeTab.value === 'rating') {
+      recommendDishes.value = await getRecommendByRating(4)
+    } else {
+      recommendDishes.value = await getRecommendBySales(4)
+    }
+  } catch (error) {
+    console.error('获取推荐菜品失败:', error)
+  } finally {
+    loading.value = false
   }
-]
+}
+
+// 切换标签时重新获取数据
+watch(activeTab, () => {
+  fetchRecommendDishes()
+})
+
+// 初始加载
+onMounted(() => {
+  fetchRecommendDishes()
+})
 
 const searchQuery = ref('')
-const activeTab = ref('nearby')
 </script>
 
 <template>
@@ -202,7 +182,7 @@ const activeTab = ref('nearby')
           
           <div class="flex bg-gray-100 p-1 rounded-full">
             <button 
-              v-for="tab in ['nearby', 'rating', 'sales']" 
+              v-for="tab in (['rating', 'sales'] as const)" 
               :key="tab"
               @click="activeTab = tab"
               :class="[
@@ -210,21 +190,34 @@ const activeTab = ref('nearby')
                 activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               ]"
             >
-              {{ tab === 'nearby' ? '附近' : tab === 'rating' ? '好评优先' : '销量最高' }}
+              {{ tab === 'rating' ? '好评优先' : '销量最高' }}
             </button>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <!-- 加载骨架屏 -->
+        <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div v-for="i in 4" :key="i" class="bg-white rounded-3xl border border-gray-100 overflow-hidden">
+            <USkeleton class="h-56 w-full" />
+            <div class="p-6 space-y-4">
+              <USkeleton class="h-6 w-3/4" />
+              <USkeleton class="h-10 w-full" />
+              <USkeleton class="h-8 w-1/2" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 菜品列表 -->
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div
-            v-for="dish in popularDishes"
+            v-for="dish in recommendDishes"
             :key="dish.id"
             class="group bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-2xl hover:shadow-gray-200/50 transition-all duration-500"
           >
             <!-- 图片区域 -->
             <div class="relative h-56 overflow-hidden">
               <img
-                :src="dish.image"
+                :src="dish.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=400&fit=crop'"
                 :alt="dish.name"
                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
               />
@@ -232,8 +225,8 @@ const activeTab = ref('nearby')
               
               <!-- 标签 -->
               <div class="absolute top-4 left-4 flex gap-2">
-                <span v-for="tag in dish.tags" :key="tag" class="bg-white/90 backdrop-blur text-orange-600 text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm">
-                  {{ tag }}
+                <span v-if="dish.sales && dish.sales > 100" class="bg-white/90 backdrop-blur text-orange-600 text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm">
+                  热销
                 </span>
               </div>
               
@@ -242,11 +235,10 @@ const activeTab = ref('nearby')
                 <UIcon name="i-lucide-heart" class="w-4 h-4 text-white group-hover/btn:text-red-500 transition-colors" />
               </button>
 
-              <!-- 评分 -->
+              <!-- 销量 -->
               <div class="absolute bottom-4 left-4 flex items-center gap-1 text-white text-sm font-medium">
-                <UIcon name="i-lucide-star" class="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span>{{ dish.rating }}</span>
-                <span class="text-white/70 text-xs ml-1">({{ dish.sales }}+)</span>
+                <UIcon name="i-lucide-flame" class="w-4 h-4 text-orange-400" />
+                <span>销量 {{ dish.sales || 0 }}</span>
               </div>
             </div>
             
@@ -254,16 +246,14 @@ const activeTab = ref('nearby')
             <div class="p-6">
               <div class="flex justify-between items-start mb-2">
                 <h3 class="font-bold text-lg text-gray-900 line-clamp-1 group-hover:text-orange-600 transition-colors">{{ dish.name }}</h3>
-                <span class="text-xs text-gray-400 whitespace-nowrap mt-1">{{ dish.time }}</span>
               </div>
               
-              <p class="text-sm text-gray-500 mb-4 line-clamp-2 h-10">{{ dish.desc }}</p>
+              <p class="text-sm text-gray-500 mb-4 line-clamp-2 h-10">{{ dish.description || '美味佳肴，等你品尝' }}</p>
               
               <div class="flex justify-between items-center pt-4 border-t border-gray-50">
                 <div class="flex items-baseline gap-2">
                   <span class="text-lg font-bold text-orange-600">¥</span>
                   <span class="text-2xl font-bold text-gray-900">{{ dish.price }}</span>
-                  <span class="text-sm text-gray-400 line-through decoration-gray-300">¥{{ dish.originalPrice }}</span>
                 </div>
                 <UButton 
                   color="primary" 
@@ -276,6 +266,12 @@ const activeTab = ref('nearby')
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- 空状态 -->
+        <div v-if="!loading && recommendDishes.length === 0" class="text-center py-16">
+          <UIcon name="i-lucide-utensils" class="w-16 h-16 mx-auto text-gray-300 mb-4" />
+          <p class="text-gray-500">暂无推荐菜品</p>
         </div>
       </UContainer>
     </section>
